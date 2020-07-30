@@ -21,6 +21,11 @@ import javax.swing.*;
 import javax.sound.midi.*;
 import java.util.*;
 import java.awt.event.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 public class BeatBox {
     
@@ -76,6 +81,18 @@ public class BeatBox {
         JButton downTempo = new JButton("downTempo");
         downTempo.addActionListener(new DownTempoListener());
         buttonBox.add(downTempo);
+
+        JButton ser = new JButton("Serialize");
+        ser.addActionListener(new serListener());
+        buttonBox.add(ser);
+
+        JButton restore = new JButton("Restore");
+        restore.addActionListener(new restoreListener());
+        buttonBox.add(restore);
+
+        JButton clear = new JButton("ClearScreen");
+        clear.addActionListener(new clearListener());
+        buttonBox.add(clear);
 
         //add all the instruments names in a box which be placed on the left side of main panel
 
@@ -230,8 +247,85 @@ public class BeatBox {
 
     }
 
-    
+    /**To save the current state of the check boxes we use serializaiton 
+    * Create a checbox boolean array of size 256 and mark it as true if the box was checked
+    * Create fileOutputstream(Connection stream), place it in ObjectOutputStrea(chain steram)
+    *   and write the object(checkBoxarray) to stream
+    */
 
+    public class serListener implements ActionListener {
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            boolean[] checkBoxState = new boolean[256];
+
+            for(int i = 0; i < 256; i++){
+                JCheckBox check  = (JCheckBox) checkboxList.get(i);
+                if(check.isSelected()) {
+                    checkBoxState[i] = true;
+                }
+            }
+            try{
+                FileOutputStream fs = new FileOutputStream(new File("state.ser"));
+                ObjectOutputStream os = new ObjectOutputStream(fs);
+                os.writeObject(checkBoxState);
+                os.close();
+            } catch(Exception ex){
+                ex.printStackTrace();
+            }
+
+        }
+
+    }
+    
+    /**To restore the state which was previously saved
+     * Pass the serialized object into the file class, and then to file input stream 
+     * pass the file input stream to object input stream and you get to read the object
+     * Create a checkboxstate array and assign the values from object to it
+     * Re-arrange the checkboxList array
+     * Stop what is currently playing on the sequence
+     * Play the current checkBoxState(restored) using "buildTrackandStart()"
+     */
+    public class restoreListener implements ActionListener {
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            boolean[] checkBoxState = null;
+            try{
+                FileInputStream fs = new FileInputStream(new File("state.ser"));
+                ObjectInputStream os = new ObjectInputStream(fs);
+                checkBoxState = (boolean[]) os.readObject();
+
+            } catch(Exception ex){
+                System.out.println("Could not restore the version");
+                ex.printStackTrace();
+            }
+            for(int i = 0; i < 256; i++){
+                JCheckBox check = (JCheckBox) checkboxList.get(i);
+                if(checkBoxState[i]) {
+                    check.setSelected(true);
+                } else {
+                    check.setSelected(false);
+                }
+            }
+            sequencer.stop();
+            buildTrackAndStart();
+        }
+        
+    }
+
+    public class clearListener implements ActionListener {
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            for(int i=0; i< 256; i++){
+                JCheckBox check = (JCheckBox) checkboxList.get(i);
+                check.setSelected(false);
+            }
+
+        }
+        
+    }
     //If the indexed value is zero instrument should not play or else make event and add it to track
     //Use of this function is to make it easier for making events
     public void makeTracks(int[] list) {
